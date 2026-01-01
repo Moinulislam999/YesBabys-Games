@@ -4,6 +4,7 @@ export interface Game {
   title: string;
   category: string; // Refers to Category.name
   image: string;
+  playIcon?: string; // Specific sticker/icon for the play button
   badge?: string; // e.g., "New", "🔥", "Updated"
   url: string;
   createdAt: number;
