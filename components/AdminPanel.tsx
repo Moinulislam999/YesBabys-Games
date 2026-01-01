@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Game, GameCategory } from '../types';
 import { Icons } from '../constants';
 import { db } from '../firebase';
@@ -17,7 +17,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ games, categories, onClose }) =
   const [editingCategory, setEditingCategory] = useState<GameCategory | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Game Form State
+  const gameFileRef = useRef<HTMLInputElement>(null);
+  const catFileRef = useRef<HTMLInputElement>(null);
+
   const [gameData, setGameData] = useState({
     title: '',
     category: categories[0]?.name || '',
@@ -26,11 +28,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ games, categories, onClose }) =
     url: ''
   });
 
-  // Category Form State
   const [catData, setCatData] = useState({
     name: '',
     icon: ''
   });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'game' | 'cat') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadstart = () => setLoading(true);
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      if (type === 'game') {
+        setGameData({ ...gameData, image: base64String });
+      } else {
+        setCatData({ ...catData, icon: base64String });
+      }
+      setLoading(false);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleEditGame = (game: Game) => {
     setEditingGame(game);
@@ -42,6 +61,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ games, categories, onClose }) =
       url: game.url
     });
     setActiveTab('games');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleEditCat = (cat: GameCategory) => {
@@ -51,10 +71,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ games, categories, onClose }) =
       icon: cat.icon
     });
     setActiveTab('categories');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleGameSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!gameData.image) { alert('Please upload a game image'); return; }
     setLoading(true);
     try {
       if (editingGame) {
@@ -64,12 +86,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ games, categories, onClose }) =
         await addDoc(collection(db, 'games'), { ...gameData, createdAt: Date.now(), badge: gameData.badge || null });
       }
       setGameData({ title: '', category: categories[0]?.name || '', image: '', badge: '', url: '' });
-    } catch (err) { alert('Failed'); }
+      if (gameFileRef.current) gameFileRef.current.value = '';
+    } catch (err) { alert('Database error'); }
     setLoading(false);
   };
 
   const handleCatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!catData.icon) { alert('Please upload a category icon'); return; }
     setLoading(true);
     try {
       if (editingCategory) {
@@ -79,113 +103,195 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ games, categories, onClose }) =
         await addDoc(collection(db, 'categories'), { ...catData });
       }
       setCatData({ name: '', icon: '' });
-    } catch (err) { alert('Failed'); }
+      if (catFileRef.current) catFileRef.current.value = '';
+    } catch (err) { alert('Database error'); }
     setLoading(false);
   };
 
   return (
-    <div className="max-w-6xl mx-auto animate-fadeIn pb-20">
-      <div className="flex items-center justify-between mb-8">
+    <div className="max-w-7xl mx-auto animate-fadeIn pb-32">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-10 gap-6">
         <div>
-          <h1 className="text-3xl font-black">Dashboard</h1>
-          <div className="flex gap-4 mt-4">
-            <button 
-              onClick={() => setActiveTab('games')}
-              className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeTab === 'games' ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/30' : 'bg-gray-800 text-gray-400'}`}
-            >
-              Manage Games
-            </button>
-            <button 
-              onClick={() => setActiveTab('categories')}
-              className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeTab === 'categories' ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/30' : 'bg-gray-800 text-gray-400'}`}
-            >
-              Manage Categories
-            </button>
-          </div>
+          <h1 className="text-4xl font-black italic tracking-tighter text-white">Management Studio</h1>
+          <p className="text-gray-500 font-medium">Create and manage your game library</p>
         </div>
-        <button onClick={onClose} className="bg-gray-800 hover:bg-gray-700 p-2 rounded-lg text-white">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        </button>
+        <div className="flex gap-2 p-1.5 bg-[#16191e] rounded-2xl border border-gray-800">
+          <button 
+            onClick={() => setActiveTab('games')}
+            className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'games' ? 'bg-purple-600 text-white shadow-xl' : 'text-gray-400 hover:text-white'}`}
+          >
+            Games
+          </button>
+          <button 
+            onClick={() => setActiveTab('categories')}
+            className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${activeTab === 'categories' ? 'bg-purple-600 text-white shadow-xl' : 'text-gray-400 hover:text-white'}`}
+          >
+            Categories
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Form */}
-        <div className="lg:col-span-1">
-          {activeTab === 'games' ? (
-            <div className="bg-[#1a1d23] p-6 rounded-2xl border border-gray-800 shadow-xl">
-              <h2 className="text-xl font-bold mb-6 text-purple-400 flex items-center gap-2">
-                <Icons.Plus /> {editingGame ? 'Edit Game' : 'Post New Game'}
-              </h2>
-              <form onSubmit={handleGameSubmit} className="space-y-4">
-                <input type="text" placeholder="Title" value={gameData.title} onChange={e => setGameData({...gameData, title: e.target.value})} className="w-full bg-[#0b0e11] border border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-purple-500" required />
-                <select value={gameData.category} onChange={e => setGameData({...gameData, category: e.target.value})} className="w-full bg-[#0b0e11] border border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-purple-500" required>
-                  <option value="">Select Category</option>
-                  {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-                <input type="text" placeholder="Image URL" value={gameData.image} onChange={e => setGameData({...gameData, image: e.target.value})} className="w-full bg-[#0b0e11] border border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-purple-500" required />
-                <input type="text" placeholder="Game Play URL" value={gameData.url} onChange={e => setGameData({...gameData, url: e.target.value})} className="w-full bg-[#0b0e11] border border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-purple-500" required />
-                <input type="text" placeholder="Badge (e.g. 🔥, NEW)" value={gameData.badge} onChange={e => setGameData({...gameData, badge: e.target.value})} className="w-full bg-[#0b0e11] border border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-purple-500" />
-                <button type="submit" disabled={loading} className="w-full bg-purple-600 hover:bg-purple-700 py-3 rounded-xl font-bold shadow-lg shadow-purple-900/20">{loading ? 'Saving...' : 'Save Game'}</button>
-                {editingGame && <button type="button" onClick={() => setEditingGame(null)} className="w-full bg-gray-800 py-3 rounded-xl font-bold mt-2">Cancel</button>}
-              </form>
-            </div>
-          ) : (
-            <div className="bg-[#1a1d23] p-6 rounded-2xl border border-gray-800 shadow-xl">
-              <h2 className="text-xl font-bold mb-6 text-purple-400 flex items-center gap-2">
-                <Icons.Plus /> {editingCategory ? 'Edit Category' : 'New Category'}
-              </h2>
-              <form onSubmit={handleCatSubmit} className="space-y-4">
-                <input type="text" placeholder="Category Name" value={catData.name} onChange={e => setCatData({...catData, name: e.target.value})} className="w-full bg-[#0b0e11] border border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-purple-500" required />
-                <input type="text" placeholder="Icon URL (SVG/PNG Link)" value={catData.icon} onChange={e => setCatData({...catData, icon: e.target.value})} className="w-full bg-[#0b0e11] border border-gray-700 rounded-xl px-4 py-2.5 outline-none focus:border-purple-500" />
-                <button type="submit" disabled={loading} className="w-full bg-purple-600 hover:bg-purple-700 py-3 rounded-xl font-bold shadow-lg shadow-purple-900/20">{loading ? 'Saving...' : 'Save Category'}</button>
-                {editingCategory && <button type="button" onClick={() => setEditingCategory(null)} className="w-full bg-gray-800 py-3 rounded-xl font-bold mt-2">Cancel</button>}
-              </form>
-            </div>
-          )}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        {/* Left Form: Sticky on desktop */}
+        <div className="lg:col-span-4 h-fit lg:sticky lg:top-24">
+          <div className="bg-[#1a1d23] p-8 rounded-[2rem] border border-gray-800 shadow-2xl">
+            {activeTab === 'games' ? (
+              <>
+                <h2 className="text-2xl font-black mb-8 text-purple-400 flex items-center gap-3">
+                  <div className="bg-purple-600/10 p-2 rounded-lg"><Icons.Plus /></div>
+                  {editingGame ? 'Update Game' : 'Post New Game'}
+                </h2>
+                <form onSubmit={handleGameSubmit} className="space-y-6">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Game Title</label>
+                    <input type="text" placeholder="e.g., Moto X3M Pool Party" value={gameData.title} onChange={e => setGameData({...gameData, title: e.target.value})} className="w-full bg-[#0b0e11] border border-gray-700 focus:border-purple-500 rounded-2xl px-5 py-3.5 outline-none transition-all font-bold text-sm" required />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Genre / Category</label>
+                    <select value={gameData.category} onChange={e => setGameData({...gameData, category: e.target.value})} className="w-full bg-[#0b0e11] border border-gray-700 focus:border-purple-500 rounded-2xl px-5 py-3.5 outline-none transition-all font-bold text-sm appearance-none cursor-pointer" required>
+                      <option value="">Choose a genre...</option>
+                      {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Media Upload</label>
+                    <div className="flex flex-col gap-4">
+                      <div 
+                        onClick={() => gameFileRef.current?.click()}
+                        className="group relative cursor-pointer aspect-video bg-[#0b0e11] border-2 border-dashed border-gray-700 hover:border-purple-500/50 rounded-2xl flex flex-col items-center justify-center transition-all overflow-hidden"
+                      >
+                        {gameData.image ? (
+                          <img src={gameData.image} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                        ) : (
+                          <div className="flex flex-col items-center gap-2 text-gray-500 group-hover:text-purple-400">
+                            <Icons.Plus />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Select Image</span>
+                          </div>
+                        )}
+                        <input type="file" ref={gameFileRef} accept="image/*" onChange={(e) => handleFileUpload(e, 'game')} className="hidden" />
+                      </div>
+                      <input type="text" placeholder="Or paste image URL directly" value={gameData.image} onChange={e => setGameData({...gameData, image: e.target.value})} className="w-full bg-[#0b0e11] border border-gray-700 focus:border-purple-500 rounded-2xl px-5 py-2 text-[10px] outline-none font-mono" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Play / Embed Link</label>
+                    <input type="text" placeholder="Iframe or SWF URL" value={gameData.url} onChange={e => setGameData({...gameData, url: e.target.value})} className="w-full bg-[#0b0e11] border border-gray-700 focus:border-purple-500 rounded-2xl px-5 py-3.5 outline-none transition-all font-bold text-sm" required />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Special Badge</label>
+                    <input type="text" placeholder="🔥, HOT, NEW, UPDATED" value={gameData.badge} onChange={e => setGameData({...gameData, badge: e.target.value})} className="w-full bg-[#0b0e11] border border-gray-700 focus:border-purple-500 rounded-2xl px-5 py-3.5 outline-none transition-all font-bold text-sm" />
+                  </div>
+                  
+                  <div className="pt-4 flex flex-col gap-3">
+                    <button type="submit" disabled={loading} className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-purple-900/20 transition-all transform active:scale-95">
+                      {loading ? 'Processing...' : (editingGame ? 'Update Game' : 'Publish Game')}
+                    </button>
+                    {editingGame && (
+                      <button type="button" onClick={() => { setEditingGame(null); setGameData({title: '', category: '', image: '', badge: '', url: ''}); }} className="w-full bg-gray-800 hover:bg-gray-700 text-white py-4 rounded-2xl font-black uppercase tracking-widest">
+                        Discard Changes
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl font-black mb-8 text-purple-400 flex items-center gap-3">
+                  <div className="bg-purple-600/10 p-2 rounded-lg"><Icons.Plus /></div>
+                  {editingCategory ? 'Edit Category' : 'New Collection'}
+                </h2>
+                <form onSubmit={handleCatSubmit} className="space-y-6">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Name</label>
+                    <input type="text" placeholder="e.g., Action, Sports..." value={catData.name} onChange={e => setCatData({...catData, name: e.target.value})} className="w-full bg-[#0b0e11] border border-gray-700 focus:border-purple-500 rounded-2xl px-5 py-3.5 outline-none transition-all font-bold text-sm" required />
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Collection Icon</label>
+                    <div className="flex flex-col gap-4">
+                      <div 
+                        onClick={() => catFileRef.current?.click()}
+                        className="group relative cursor-pointer w-24 h-24 bg-[#0b0e11] border-2 border-dashed border-gray-700 hover:border-purple-500/50 rounded-2xl flex flex-col items-center justify-center transition-all overflow-hidden mx-auto"
+                      >
+                        {catData.icon ? (
+                          <img src={catData.icon} className="w-full h-full object-contain p-2" />
+                        ) : (
+                          <div className="flex flex-col items-center gap-1 text-gray-500 group-hover:text-purple-400">
+                            <Icons.Plus />
+                          </div>
+                        )}
+                        <input type="file" ref={catFileRef} accept="image/*" onChange={(e) => handleFileUpload(e, 'cat')} className="hidden" />
+                      </div>
+                      <input type="text" placeholder="Or Icon URL" value={catData.icon} onChange={e => setCatData({...catData, icon: e.target.value})} className="w-full bg-[#0b0e11] border border-gray-700 focus:border-purple-500 rounded-2xl px-5 py-2 text-[10px] outline-none font-mono" />
+                    </div>
+                  </div>
+
+                  <div className="pt-4 flex flex-col gap-3">
+                    <button type="submit" disabled={loading} className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-purple-900/20 transition-all transform active:scale-95">
+                      {loading ? 'Processing...' : (editingCategory ? 'Update Genre' : 'Create Genre')}
+                    </button>
+                    {editingCategory && (
+                      <button type="button" onClick={() => { setEditingCategory(null); setCatData({name: '', icon: ''}); }} className="w-full bg-gray-800 hover:bg-gray-700 text-white py-4 rounded-2xl font-black uppercase tracking-widest">
+                        Discard Changes
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Right List */}
-        <div className="lg:col-span-2">
-          <div className="bg-[#1a1d23] rounded-2xl border border-gray-800 overflow-hidden shadow-xl">
-            {activeTab === 'games' ? (
-              <table className="w-full text-left">
-                <thead className="bg-[#16191e] text-[10px] font-black uppercase text-gray-500 tracking-wider">
-                  <tr><th className="p-4">Game</th><th className="p-4">Category</th><th className="p-4 text-right">Actions</th></tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
+        {/* Right List: Scrollable */}
+        <div className="lg:col-span-8">
+          <div className="bg-[#1a1d23] rounded-[2rem] border border-gray-800 overflow-hidden shadow-2xl">
+            <div className="p-6 bg-[#16191e] border-b border-gray-800 flex items-center justify-between">
+              <h3 className="font-black uppercase tracking-widest text-[11px] text-gray-400">
+                Current {activeTab === 'games' ? `Games Library (${games.length})` : `Categories (${categories.length})`}
+              </h3>
+            </div>
+            
+            <div className="max-h-[800px] overflow-y-auto custom-scrollbar">
+              {activeTab === 'games' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
                   {games.map(g => (
-                    <tr key={g.id} className="hover:bg-white/5 transition-colors">
-                      <td className="p-4 flex items-center gap-3"><img src={g.image} className="w-10 h-10 rounded object-cover" /> <span className="font-bold">{g.title}</span></td>
-                      <td className="p-4"><span className="px-2 py-1 bg-gray-800 rounded text-[10px] uppercase font-bold text-gray-400">{g.category}</span></td>
-                      <td className="p-4 text-right space-x-2">
-                        <button onClick={() => handleEditGame(g)} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg"><Icons.Edit /></button>
-                        <button onClick={() => deleteDoc(doc(db, 'games', g.id))} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg"><Icons.Delete /></button>
-                      </td>
-                    </tr>
+                    <div key={g.id} className="flex gap-4 p-4 bg-[#0b0e11] border border-gray-800 rounded-2xl hover:border-purple-500/30 transition-all group">
+                      <img src={g.image} className="w-20 h-20 rounded-xl object-cover shadow-lg" />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-white truncate">{g.title}</h4>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="px-2 py-0.5 bg-gray-800 rounded-md text-[9px] font-black text-gray-500 uppercase">{g.category}</span>
+                          {g.badge && <span className="text-[9px]">{g.badge}</span>}
+                        </div>
+                        <div className="flex gap-2 mt-3">
+                          <button onClick={() => handleEditGame(g)} className="flex-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors">Edit</button>
+                          <button onClick={() => { if(confirm('Delete?')) deleteDoc(doc(db, 'games', g.id)) }} className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors">Delete</button>
+                        </div>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            ) : (
-              <table className="w-full text-left">
-                <thead className="bg-[#16191e] text-[10px] font-black uppercase text-gray-500 tracking-wider">
-                  <tr><th className="p-4">Category</th><th className="p-4">Logo</th><th className="p-4 text-right">Actions</th></tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-6">
                   {categories.map(c => (
-                    <tr key={c.id} className="hover:bg-white/5 transition-colors">
-                      <td className="p-4 font-bold text-gray-200">{c.name}</td>
-                      <td className="p-4">
-                        {c.icon ? <img src={c.icon} className="w-8 h-8 object-contain" /> : <span className="text-gray-600 text-[10px]">No Logo</span>}
-                      </td>
-                      <td className="p-4 text-right space-x-2">
-                        <button onClick={() => handleEditCat(c)} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg"><Icons.Edit /></button>
-                        <button onClick={() => deleteDoc(doc(db, 'categories', c.id))} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg"><Icons.Delete /></button>
-                      </td>
-                    </tr>
+                    <div key={c.id} className="flex flex-col items-center p-6 bg-[#0b0e11] border border-gray-800 rounded-3xl hover:border-purple-500/30 transition-all text-center relative group">
+                      <div className="w-14 h-14 bg-gray-800 rounded-2xl flex items-center justify-center mb-4">
+                        {c.icon ? <img src={c.icon} className="w-10 h-10 object-contain" /> : <div className="w-2 h-2 rounded-full bg-purple-500" />}
+                      </div>
+                      <h4 className="font-black text-sm text-white uppercase tracking-tight">{c.name}</h4>
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
+                        <button onClick={() => handleEditCat(c)} className="p-2 bg-blue-500 rounded-lg shadow-lg"><Icons.Edit /></button>
+                        <button onClick={() => { if(confirm('Delete?')) deleteDoc(doc(db, 'categories', c.id)) }} className="p-2 bg-red-500 rounded-lg shadow-lg"><Icons.Delete /></button>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
