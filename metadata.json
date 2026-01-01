@@ -1,8 +1,0 @@
-{
-  "name": "YesBabys Games - Ultimate Gaming Hub",
-  "description": "A high-performance gaming portal inspired by CrazyGames, featuring categorized game collections, user accounts for history, and an advanced admin panel for content management.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ]
-}
