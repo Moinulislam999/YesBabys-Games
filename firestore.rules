@@ -1,0 +1,25 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Games collection: Anyone can read, only admin can write
+    match /games/{gameId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'moinulbd.sk@gmail.com';
+    }
+    
+    // Categories collection: Anyone can read, only admin can write
+    match /categories/{catId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'moinulbd.sk@gmail.com';
+    }
+    
+    // Users collection: Users can only read/write their own document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /games { allow read: if true; }
+    match /categories { allow read: if true; }
+  }
+}
