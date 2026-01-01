@@ -1,5 +1,5 @@
 {
-  "name": "crazyplay---ultimate-gaming-hub",
+  "name": "yesbabys-games---ultimate-gaming-hub",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "react-dom": "^19.2.3",
-    "react": "^19.2.3"
+    "react": "^19.2.3",
+    "firebase": "^12.7.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

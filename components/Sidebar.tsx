@@ -31,7 +31,7 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedCategory, onSelectCategory })
           <div className="bg-purple-600 p-1.5 rounded-lg">
             <Icons.Home />
           </div>
-          <h1 className="text-xl font-black tracking-tight text-white uppercase">CrazyPlay</h1>
+          <h1 className="text-xl font-black tracking-tight text-white uppercase">YesBabys</h1>
         </div>
 
         <nav className="px-3 py-2 space-y-1 overflow-y-auto h-[calc(100vh-80px)] scrollbar-hide">

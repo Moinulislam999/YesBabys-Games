@@ -36,7 +36,7 @@ const GamePlayer: React.FC<GamePlayerProps> = ({ game, onBack }) => {
           <img src={game.image} className="w-64 h-36 object-cover rounded-2xl shadow-2xl mb-8 border-4 border-purple-600/20" alt="" />
           <h2 className="text-3xl font-black mb-2">Ready to Play?</h2>
           <p className="text-gray-400 max-w-md mb-8">
-            You are about to play <span className="text-white font-bold">{game.title}</span>. Enjoy your gaming session on CrazyPlay!
+            You are about to play <span className="text-white font-bold">{game.title}</span>. Enjoy your gaming session on YesBabys Games!
           </p>
           <div className="space-x-4">
              <a 
